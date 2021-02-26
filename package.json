@@ -1,0 +1,29 @@
+{
+  "name": "hash-code-2021",
+  "version": "0.0.1",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/fabio-percivaldi/hash-code-2021.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/fabio-percivaldi/hash-code-2021/issues"
+  },
+  "homepage": "https://github.com/fabio-percivaldi/hash-code-2021#readme",
+  "devDependencies": {
+    "@mia-platform/eslint-config-mia": "^3.0.0",
+    "eslint": "^7.19.0"
+  },
+  "eslintConfig": {
+    "extends": "@mia-platform/eslint-config-mia"
+  },
+  "dependencies": {
+    "lodash.set": "^4.3.2"
+  }
+}
