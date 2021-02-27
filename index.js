@@ -1,17 +1,18 @@
 'use strict'
 
 const fs = require('fs')
+const path = require('path')
 const readline = require('readline')
 const lset = require('lodash.set')
 const lget = require('lodash.get')
 
-const [,,filename] = process.argv
+const [,,filepath] = process.argv
 
-
+const filename = path.basename(filepath)
 const intersections = {}
 const streets = {}
 
-var filestream = fs.createReadStream(filename);
+var filestream = fs.createReadStream(filepath ?? './input/a.txt');
 const rl = readline.createInterface(filestream)
 
 let duration, intersectionsCount, streetsCount, carsCount, score
@@ -58,7 +59,26 @@ rl.on('line', (line) => {
     addCar(line, carId, intersections, streets)
 });
 
+const computeSchedule = () => {
+    const schedule = {}
+    Object.keys(intersections).forEach(intersectionId => {
+        schedule[intersectionId] = []
+        Object.keys(intersections[intersectionId].input).forEach(routeName => {
+            schedule[intersectionId].push({ routeName, duration: 1})
+        })
+    })
+    fs.writeFileSync(path.join(__dirname, 'output', filename), '')
+    fs.appendFileSync(path.join(__dirname, 'output', filename), `${Object.keys(schedule).length.toString()}\r\n`)
+
+    Object.keys(schedule).forEach(intersectionScheduleId => { 
+        fs.appendFileSync(path.join(__dirname, 'output', filename), `${intersectionScheduleId.toString()}\r\n`)
+        fs.appendFileSync(path.join(__dirname, 'output', filename), `${schedule[intersectionScheduleId].length.toString()}\r\n`)
+
+        schedule[intersectionScheduleId].forEach(street => {
+            fs.appendFileSync(path.join(__dirname, 'output', filename), `${[street.routeName, street.duration].join(' ')}\r\n`)
+        })
+    })
+}
 rl.on('close', () => {
-    console.log('||||||||||', JSON.stringify(intersections))
-    console.log('||||||||||', JSON.stringify(streets))
+    computeSchedule()
 })
