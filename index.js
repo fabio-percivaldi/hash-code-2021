@@ -5,6 +5,7 @@ const path = require('path')
 const readline = require('readline')
 const lset = require('lodash.set')
 const lget = require('lodash.get')
+const lomitBy = require('lodash.omitby')
 
 const inputFileNames = ['a.txt', 'b.txt', 'c.txt', 'd.txt', 'e.txt', 'f.txt']
 const readFileAndComputeSchedule = (filename) => {
@@ -61,56 +62,23 @@ const readFileAndComputeSchedule = (filename) => {
         carId += 1
         addCar(line, carId, intersections, streets)
     });
-    
-    // "0": {
-    //     "input": {
-    //       "rue-de-londres": {
-    //         "queue": [
-    //           {
-    //             "carId": 0,
-    //             "score": 0,
-    //             "nextHop": [
-    //               "rue-d-amsterdam",
-    //               "rue-de-moscou",
-    //               "rue-de-rome"
-    //             ]
-    //           }
-    //         ]
-    //       }
-    //     },
-    //     "output": {
-    //       "rue-d-amsterdam": {
-    //         "queue": [
-              
-    //         ]
-    //       }
-    //     }
-    //   }
-    
-    // "rue-de-londres": {
-    //     "start": "2",
-    //     "end": "0",
-    //     "mileage": "1"
-    //   }
-    
-    // {
-    //     '0': [ { routeName: 'rue-de-londres', duration: 1 } ],
-    //     '1': [
-    //       { routeName: 'rue-d-amsterdam', duration: 1 },
-    //       { routeName: 'rue-d-athenes', duration: 1 }
-    //     ],
-    //     '2': [ { routeName: 'rue-de-moscou', duration: 1 } ],
-    //     '3': [ { routeName: 'rue-de-rome', duration: 1 } ]
-    //   }
+  
     const computeSchedule = () => {
-        const schedule = {}
+        let schedule = {}
         Object.keys(intersections).forEach(intersectionId => {
             schedule[intersectionId] = []
             Object.entries(intersections[intersectionId].input).forEach(([routeName, routObj]) => {
-                const totalCarCount = (routObj.queue.length === 0 || routObj.queue.length === 1) ? 2 : routObj.queue.length
+                let totalCarCount = routObj.queue.length === 0 ? 1 : routObj.queue.length
+                totalCarCount = routObj.queue.length === 1 ? 2 : totalCarCount  
                 const duration = Math.floor(Math.log2(totalCarCount))
+                if(duration === 0) {
+                    return
+                }
                 schedule[intersectionId].push({ routeName, duration})
             })
+        })
+        schedule = lomitBy(schedule, (obj) => {
+            return obj.length === 0
         })
         fs.writeFileSync(path.join(__dirname, 'output', filename), '')
         fs.appendFileSync(path.join(__dirname, 'output', filename), `${Object.keys(schedule).length.toString()}\r\n`)

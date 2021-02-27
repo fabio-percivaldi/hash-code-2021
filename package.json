@@ -25,6 +25,7 @@
   },
   "dependencies": {
     "lodash.get": "^4.4.2",
+    "lodash.omitby": "^4.6.0",
     "lodash.set": "^4.3.2"
   }
 }
