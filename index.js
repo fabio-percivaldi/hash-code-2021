@@ -8,11 +8,11 @@ const lget = require('lodash.get')
 
 const [,,filepath] = process.argv
 
-const filename = path.basename(filepath)
+const filename = path.basename(filepath  ?? './input/d.txt')
 const intersections = {}
 const streets = {}
 
-var filestream = fs.createReadStream(filepath ?? './input/a.txt');
+var filestream = fs.createReadStream(filepath ?? './input/d.txt');
 const rl = readline.createInterface(filestream)
 
 let duration, intersectionsCount, streetsCount, carsCount, score
@@ -32,10 +32,13 @@ const addStreet = (street, intersections, streets) => {
 
 const addCar = (car, index, intersections, streets) => {
     const streetsPath = car.split(' ')
-    const [, streetName] = streetsPath
-    const intersectionId = lget(streets, [streetName, 'end'], null)
-    const intersection = lget(intersections, [intersectionId, 'input', streetName, 'queue'])
-    intersection.push({ carId: index, score: getCarScore(), nextHop: streetsPath.slice(2) })
+    const [pathLength] = streetsPath
+    for(let i = 1; i < parseInt(pathLength); i++) {
+        const streetName = streetsPath[i]
+        const intersectionId = lget(streets, [streetName, 'end'], null)
+        const intersection = lget(intersections, [intersectionId, 'input', streetName, 'queue'])
+        intersection.push({ carId: index, score: getCarScore(), nextHop: streetsPath.slice(2) })
+    }
 }
 
 let index = -1
@@ -59,12 +62,53 @@ rl.on('line', (line) => {
     addCar(line, carId, intersections, streets)
 });
 
+// "0": {
+//     "input": {
+//       "rue-de-londres": {
+//         "queue": [
+//           {
+//             "carId": 0,
+//             "score": 0,
+//             "nextHop": [
+//               "rue-d-amsterdam",
+//               "rue-de-moscou",
+//               "rue-de-rome"
+//             ]
+//           }
+//         ]
+//       }
+//     },
+//     "output": {
+//       "rue-d-amsterdam": {
+//         "queue": [
+          
+//         ]
+//       }
+//     }
+//   }
+
+// "rue-de-londres": {
+//     "start": "2",
+//     "end": "0",
+//     "mileage": "1"
+//   }
+
+// {
+//     '0': [ { routeName: 'rue-de-londres', duration: 1 } ],
+//     '1': [
+//       { routeName: 'rue-d-amsterdam', duration: 1 },
+//       { routeName: 'rue-d-athenes', duration: 1 }
+//     ],
+//     '2': [ { routeName: 'rue-de-moscou', duration: 1 } ],
+//     '3': [ { routeName: 'rue-de-rome', duration: 1 } ]
+//   }
 const computeSchedule = () => {
     const schedule = {}
     Object.keys(intersections).forEach(intersectionId => {
         schedule[intersectionId] = []
-        Object.keys(intersections[intersectionId].input).forEach(routeName => {
-            schedule[intersectionId].push({ routeName, duration: 1})
+        Object.entries(intersections[intersectionId].input).forEach(([routeName, routObj]) => {
+            const duration = routObj.queue.length === 0 ? 1 : routObj.queue.length
+            schedule[intersectionId].push({ routeName, duration})
         })
     })
     fs.writeFileSync(path.join(__dirname, 'output', filename), '')
