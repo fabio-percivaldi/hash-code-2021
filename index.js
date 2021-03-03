@@ -1,5 +1,4 @@
 'use strict'
-
 const fs = require('fs')
 const path = require('path')
 const readline = require('readline')
@@ -11,16 +10,19 @@ const inputFileNames = ['a.txt', 'b.txt', 'c.txt', 'd.txt', 'e.txt', 'f.txt']
 const readFileAndComputeSchedule = (filename) => {
     const intersections = {}
     const streets = {}
-    
+
     var filestream = fs.createReadStream(path.join(__dirname, 'input', filename));
     const rl = readline.createInterface(filestream)
-    
-    let duration, intersectionsCount, streetsCount, carsCount, score
-    
-    const getCarScore = () => {
-        return 0
+
+    let totalDuration, intersectionsCount, streetsCount, carsCount, score
+
+    const getCarMileage = (streetsPath) => {
+        return streetsPath.reduce((acc, curr) => {
+            const { mileage } = streets[curr]
+            return acc + parseInt(mileage)
+        }, 0)
     }
-    
+
     const addStreet = (street, intersections, streets) => {
         const [start, end, streetName, mileage] = street.split(' ')
         lset(intersections, [start, 'output', streetName], mileage)
@@ -29,52 +31,86 @@ const readFileAndComputeSchedule = (filename) => {
         lset(intersections, [end, 'input', streetName, 'queue'], [])
         lset(streets, streetName, { start, end, mileage })
     }
-    
+
     const addCar = (car, index, intersections, streets) => {
         const streetsPath = car.split(' ')
         const [pathLength] = streetsPath
-        
-        for(let i = 1; i < parseInt(pathLength); i++) {
+
+        for (let i = 1; i < parseInt(pathLength); i++) {
             const streetName = streetsPath[i]
             const intersectionId = lget(streets, [streetName, 'end'], null)
-            const intersection = lget(intersections, [intersectionId, 'input', streetName, 'queue'])
-            intersection.push({ carId: index, score: getCarScore(), nextHop: streetsPath.slice(2) })
+            const intersectionQueue = lget(intersections, [intersectionId, 'input', streetName, 'queue'])
+            const mileage = getCarMileage(streetsPath.slice(1))
+            if(mileage <= totalDuration) {
+                intersectionQueue.push({ carId: index, nextHop: streetsPath.slice(2), stepCounter: i })
+            } else {
+                skippedCard += 1
+            }
         }
     }
-    
+
     let index = -1
     let carId = -1
-    
+    let skippedCard = 0
     rl.on('line', (line) => {
         index += 1
-        if(index === 0) {
-            [duration, intersectionsCount, streetsCount, carsCount, score] = line.split(' ')
-            duration = parseInt(duration)
+        if (index === 0) {
+            [totalDuration, intersectionsCount, streetsCount, carsCount, score] = line.split(' ')
+            totalDuration = parseInt(totalDuration)
             intersectionsCount = parseInt(intersectionsCount)
             streetsCount = parseInt(streetsCount)
             carsCount = parseInt(carsCount)
             return
         }
-        if(index <= streetsCount) {
+        if (index <= streetsCount) {
             addStreet(line, intersections, streets)
             return
         }
         carId += 1
         addCar(line, carId, intersections, streets)
     });
-  
+
     const computeSchedule = () => {
         let schedule = {}
+        let totalPassingThroughCarsCounter = 0
+        let streetLightCount = 0
+        // calcolo del totale delle macchine che passano per ogni nodo
+        Object.keys(intersections).forEach(intersectionId => {
+            streetLightCount += Object.values(intersections[intersectionId].input).length
+            Object.values(intersections[intersectionId].input).forEach(routeObj => {
+                const { queue } = routeObj
+                totalPassingThroughCarsCounter += queue.length
+            })
+        })
+        const averageCarPerTrafficLight = totalPassingThroughCarsCounter / streetLightCount
         Object.keys(intersections).forEach(intersectionId => {
             schedule[intersectionId] = []
-            Object.entries(intersections[intersectionId].input).forEach(([routeName, routObj]) => {
-                let totalCarCount = routObj.queue.length === 0 ? 1 : routObj.queue.length
-                totalCarCount = routObj.queue.length === 1 ? 2 : totalCarCount  
-                const duration = Math.floor(Math.log2(totalCarCount))
-                if(duration === 0) {
+            Object.entries(intersections[intersectionId].input).forEach(([routeName, routeObj]) => {
+                const { queue } = routeObj
+                if(queue.length === 0) {
                     return
                 }
-                schedule[intersectionId].push({ routeName, duration})
+                // non ha molto senso attualmente questo check andrebbe rivisto
+                // if(queue.length === 1 && averageCarPerTrafficLight > 5) {
+                //     return
+                // }
+                const totalCarCount = queue.length === 1 ? 2 : queue.length
+                const duration = Math.floor(Math.log2(totalCarCount))
+                if (duration === 0) {
+                    return
+                }
+                const initialQueue = queue.filter(car => car.stepCounter === 1)
+                schedule[intersectionId].push({ routeName, duration, initialQueueLenght: initialQueue.length })
+                // ordino per la strada con più macchina in coda
+                schedule[intersectionId] = schedule[intersectionId].sort((schedule1, schedule2) => {
+                    if(schedule1.initialQueueLenght > schedule2.initialQueueLenght) {
+                        return -1
+                    }
+                    if(schedule1.initialQueueLenght < schedule2.initialQueueLenght) {
+                        return 1
+                    }
+                    return 0
+                })
             })
         })
         schedule = lomitBy(schedule, (obj) => {
@@ -82,18 +118,19 @@ const readFileAndComputeSchedule = (filename) => {
         })
         fs.writeFileSync(path.join(__dirname, 'output', filename), '')
         fs.appendFileSync(path.join(__dirname, 'output', filename), `${Object.keys(schedule).length.toString()}\r\n`)
-    
-        Object.keys(schedule).forEach(intersectionScheduleId => { 
+
+        Object.keys(schedule).forEach(intersectionScheduleId => {
             fs.appendFileSync(path.join(__dirname, 'output', filename), `${intersectionScheduleId.toString()}\r\n`)
             fs.appendFileSync(path.join(__dirname, 'output', filename), `${schedule[intersectionScheduleId].length.toString()}\r\n`)
-    
+
             schedule[intersectionScheduleId].forEach(street => {
                 fs.appendFileSync(path.join(__dirname, 'output', filename), `${[street.routeName, street.duration].join(' ')}\r\n`)
             })
         })
     }
     rl.on('close', () => {
-        computeSchedule()
+        computeSchedule() 
+        console.log('||||||||', skippedCard)
     })
 }
 inputFileNames.forEach(filename => {
